@@ -36,6 +36,10 @@ public class MedicalRecordService {
         return repository.save(record);
     }
 
+    public MedicalRecord getById(Long id) {
+        return repository.findById(id).orElse(null);
+    }
+
     public MedicalRecord addDiagnosis(Long recordId, String description) {
         MedicalRecord record = repository.findById(recordId).orElse(null);
         if (record == null) {
@@ -47,5 +51,13 @@ public class MedicalRecordService {
 
     public List<MedicalRecord> getByPatient(Long patientId) {
         return repository.findByPatientId(patientId);
+    }
+
+    public boolean delete(Long id) {
+        if (!repository.existsById(id)) {
+            return false;
+        }
+        repository.deleteById(id);
+        return true;
     }
 }

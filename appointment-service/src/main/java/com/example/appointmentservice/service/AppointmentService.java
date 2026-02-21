@@ -33,7 +33,31 @@ public class AppointmentService {
         return repository.save(appointment);
     }
 
+    public Appointment getById(Long id) {
+        return repository.findById(id).orElse(null);
+    }
+
     public List<Appointment> getByPatient(Long patientId) {
         return repository.findByPatientId(patientId);
+    }
+
+    public Appointment update(Long id, Appointment updated) {
+        Appointment existing = repository.findById(id).orElse(null);
+        if (existing == null) {
+            return null;
+        }
+        existing.setPatientId(updated.getPatientId());
+        existing.setAppointmentDateTime(updated.getAppointmentDateTime());
+        existing.setReason(updated.getReason());
+        existing.setStatus(updated.getStatus());
+        return repository.save(existing);
+    }
+
+    public boolean delete(Long id) {
+        if (!repository.existsById(id)) {
+            return false;
+        }
+        repository.deleteById(id);
+        return true;
     }
 }

@@ -21,6 +21,7 @@ Services:
 4) Patient Service
 5) Appointment Service
 6) Medical Record Service
+7) UI Portal
 
 You can run each service using:
 ```
@@ -31,6 +32,7 @@ mvn spring-boot:run
 - Config Server: http://localhost:8888
 - Eureka: http://localhost:8761
 - API Gateway: http://localhost:8080
+- UI Portal: http://localhost:8090
 
 ## API (via Gateway)
 - Patients

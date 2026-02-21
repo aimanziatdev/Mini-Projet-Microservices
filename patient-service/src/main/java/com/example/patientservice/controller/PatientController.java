@@ -24,7 +24,7 @@ public class PatientController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Patient> getById(@PathVariable Long id) {
+    public ResponseEntity<Patient> getById(@PathVariable("id") Long id) {
         Patient patient = service.getById(id);
         if (patient == null) {
             return ResponseEntity.notFound().build();
@@ -35,5 +35,23 @@ public class PatientController {
     @GetMapping
     public List<Patient> getAll() {
         return service.getAll();
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<Patient> update(@PathVariable("id") Long id, @RequestBody Patient patient) {
+        Patient updated = service.update(id, patient);
+        if (updated == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(updated);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable("id") Long id) {
+        boolean deleted = service.delete(id);
+        if (!deleted) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.noContent().build();
     }
 }

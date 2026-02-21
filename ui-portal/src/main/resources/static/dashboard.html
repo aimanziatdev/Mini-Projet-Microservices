@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hospital Microservices | Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="bg-noise"></div>
+
+  <div class="app">
+    <aside class="sidebar">
+      <div class="sidebar-brand">Système de Gestion Hospitalière Simplifié</div>
+      <nav class="sidebar-nav">
+        <a href="#patients" class="nav-link active">Patients</a>
+        <a href="#appointments" class="nav-link">Appointments</a>
+        <a href="#records" class="nav-link">Medical Records</a>
+      </nav>
+
+    </aside>
+
+    <div class="content">
+      <header class="topbar">
+        <div>
+          <h2>Operations Dashboard</h2>
+          <p>Connected to your microservices through the API Gateway.</p>
+        </div>
+        <div class="gateway">
+          <label for="gatewayUrl">API Gateway</label>
+          <input id="gatewayUrl" type="text" value="http://localhost:8080" />
+          <button id="pingBtn">Ping</button>
+          <span id="pingStatus" class="status">Unknown</span>
+        </div>
+        <div class="service-check">
+          <label for="serviceCheck">Microservice</label>
+          <select id="serviceCheck">
+            <option value="patients">Patient Service</option>
+            <option value="appointments">Appointment Service</option>
+            <option value="records">Medical Record Service</option>
+          </select>
+          <button id="serviceCheckBtn" class="ghost">Check</button>
+          <span id="serviceCheckStatus" class="status">Unknown</span>
+        </div>
+      </header>
+
+      <main class="grid">
+        <section class="panel" id="patients">
+          <div class="panel-head">
+            <h2>Patients</h2>
+            <button class="ghost" id="refreshPatients">Refresh</button>
+          </div>
+          <div class="panel-body">
+            <form id="patientForm" class="form">
+              <input type="hidden" id="patientId" />
+              <div class="field">
+                <label>Nom</label>
+                <input id="patientNom" type="text" required />
+              </div>
+              <div class="field">
+                <label>Prenom</label>
+                <input id="patientPrenom" type="text" required />
+              </div>
+              <div class="field">
+                <label>Date de naissance</label>
+                <input id="patientDob" type="date" required />
+              </div>
+              <div class="field">
+                <label>Contact</label>
+                <input id="patientContact" type="text" required />
+              </div>
+              <div class="actions">
+                <button type="submit" id="patientSave">Save</button>
+                <button type="button" class="ghost" id="patientClear">Clear</button>
+              </div>
+            </form>
+            <div class="table-wrap">
+              <table id="patientsTable">
+                <thead>
+                  <tr>
+                    <th>ID</th><th>Nom</th><th>Prenom</th><th>Naissance</th><th>Contact</th><th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel" id="appointments">
+          <div class="panel-head">
+            <h2>Appointments</h2>
+            <button class="ghost" id="refreshAppointments">Refresh</button>
+          </div>
+          <div class="panel-body">
+            <form id="appointmentForm" class="form">
+              <input type="hidden" id="appointmentId" />
+              <div class="field">
+                <label>Patient ID</label>
+                <input id="appointmentPatientId" type="number" min="1" required />
+              </div>
+              <div class="field">
+                <label>Date & Time</label>
+                <input id="appointmentDateTime" type="datetime-local" required />
+              </div>
+              <div class="field">
+                <label>Reason</label>
+                <input id="appointmentReason" type="text" required />
+              </div>
+              <div class="field">
+                <label>Status</label>
+                <select id="appointmentStatus" required>
+                  <option value="">Select status</option>
+                  <option>Scheduled</option>
+                  <option>InProgress</option>
+                  <option>Done</option>
+                  <option>Cancelled</option>
+                </select>
+              </div>
+              <div class="actions">
+                <button type="submit" id="appointmentSave">Save</button>
+                <button type="button" class="ghost" id="appointmentClear">Clear</button>
+              </div>
+            </form>
+            <div class="inline-filter">
+              <label>Filter by patient ID</label>
+              <input id="appointmentFilter" type="number" min="1" />
+              <button id="appointmentFilterBtn" class="ghost">Load</button>
+            </div>
+            <div class="table-wrap">
+              <table id="appointmentsTable">
+                <thead>
+                  <tr>
+                    <th>ID</th><th>Patient</th><th>Date</th><th>Reason</th><th>Status</th><th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel" id="records">
+          <div class="panel-head">
+            <h2>Medical Records</h2>
+            <button class="ghost" id="refreshRecords">Refresh</button>
+          </div>
+          <div class="panel-body">
+            <form id="recordForm" class="form">
+              <div class="field">
+                <label>Patient ID</label>
+                <input id="recordPatientId" type="number" min="1" required />
+              </div>
+              <div class="actions">
+                <button type="submit" id="recordCreate">Create Record</button>
+              </div>
+            </form>
+            <form id="diagnosisForm" class="form">
+              <div class="field">
+                <label>Record ID</label>
+                <input id="diagnosisRecordId" type="number" min="1" required />
+              </div>
+              <div class="field">
+                <label>Diagnosis</label>
+                <input id="diagnosisText" type="text" required />
+              </div>
+              <div class="actions">
+                <button type="submit">Add Diagnosis</button>
+              </div>
+            </form>
+            <div class="inline-filter">
+              <label>Load records by patient ID</label>
+              <input id="recordFilter" type="number" min="1" />
+              <button id="recordFilterBtn" class="ghost">Load</button>
+            </div>
+            <div class="table-wrap">
+              <table id="recordsTable">
+                <thead>
+                  <tr>
+                    <th>ID</th><th>Patient</th><th>Created</th><th>Diagnoses</th><th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer class="footer">
+        <span>©2026, Mini-Projet Microservices </span>
+      </footer>
+    </div>
+  </div>
+
+  <div id="toastHost" class="toast-host" aria-live="polite" aria-atomic="true"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -32,8 +32,17 @@ public class MedicalRecordController {
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
+    @GetMapping("/{recordId}")
+    public ResponseEntity<MedicalRecord> getById(@PathVariable("recordId") Long recordId) {
+        MedicalRecord record = service.getById(recordId);
+        if (record == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(record);
+    }
+
     @PostMapping("/{recordId}/diagnoses")
-    public ResponseEntity<?> addDiagnosis(@PathVariable Long recordId, @RequestBody Map<String, String> body) {
+    public ResponseEntity<?> addDiagnosis(@PathVariable("recordId") Long recordId, @RequestBody Map<String, String> body) {
         String description = body.get("description");
         if (description == null || description.isBlank()) {
             return ResponseEntity.badRequest().body("description is required");
@@ -46,7 +55,16 @@ public class MedicalRecordController {
     }
 
     @GetMapping("/patient/{patientId}")
-    public List<MedicalRecord> getByPatient(@PathVariable Long patientId) {
+    public List<MedicalRecord> getByPatient(@PathVariable("patientId") Long patientId) {
         return service.getByPatient(patientId);
+    }
+
+    @DeleteMapping("/{recordId}")
+    public ResponseEntity<Void> delete(@PathVariable("recordId") Long recordId) {
+        boolean deleted = service.delete(recordId);
+        if (!deleted) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.noContent().build();
     }
 }

@@ -25,4 +25,24 @@ public class PatientService {
     public List<Patient> getAll() {
         return repository.findAll();
     }
+
+    public Patient update(Long id, Patient updated) {
+        Patient existing = repository.findById(id).orElse(null);
+        if (existing == null) {
+            return null;
+        }
+        existing.setNom(updated.getNom());
+        existing.setPrenom(updated.getPrenom());
+        existing.setDateNaissance(updated.getDateNaissance());
+        existing.setContact(updated.getContact());
+        return repository.save(existing);
+    }
+
+    public boolean delete(Long id) {
+        if (!repository.existsById(id)) {
+            return false;
+        }
+        repository.deleteById(id);
+        return true;
+    }
 }
