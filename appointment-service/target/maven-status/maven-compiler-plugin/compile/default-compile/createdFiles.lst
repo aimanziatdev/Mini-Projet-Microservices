@@ -1,0 +1,7 @@
+com\example\appointmentservice\model\Appointment.class
+com\example\appointmentservice\AppointmentServiceApplication.class
+com\example\appointmentservice\client\PatientDto.class
+com\example\appointmentservice\controller\AppointmentController.class
+com\example\appointmentservice\client\PatientClient.class
+com\example\appointmentservice\service\AppointmentService.class
+com\example\appointmentservice\repository\AppointmentRepository.class
