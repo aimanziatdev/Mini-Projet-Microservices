@@ -1,26 +1,29 @@
 <!doctype html>
-<html lang="en">
+<html lang="fr">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Hospital Microservices | Landing</title>
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <title>Microservices Hospitaliers | Accueil</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styles.css?v=20260221-1" />
 </head>
 <body>
   <div class="bg-noise"></div>
 
   <section class="landing">
     <div class="landing-content">
-      <div class="badge">Hospital Microservices</div>
-      <h1>Unified Operations Console</h1>
-      <p>Manage patients, appointments, and medical records from a single, fast UI built for microservices.</p>
+      <div class="badge">Microservices Hospitaliers</div>
+      <h1>Console operationnelle unifiee</h1>
+      <p>Gerez les patients, les rendez-vous et les dossiers medicaux depuis une interface unique.</p>
       <div class="landing-actions">
-        <a class="btn-link" href="dashboard.html">Enter Dashboard</a>
-        <button id="landingPing" class="ghost">Check Gateway</button>
-        <span id="landingStatus" class="status">Unknown</span>
+        <a class="btn-link" href="dashboard.html">Ouvrir le tableau de bord</a>
+        <button id="landingPing" class="ghost">Verifier la passerelle</button>
+        <span id="landingStatus" class="status">Inconnu</span>
       </div>
     </div>
     <div class="landing-card">
@@ -29,11 +32,11 @@
         <span class="value">6</span>
       </div>
       <div class="metric">
-        <span class="label">Gateway</span>
+        <span class="label">Passerelle</span>
         <span class="value">8080</span>
       </div>
       <div class="metric">
-        <span class="label">UI</span>
+        <span class="label">Interface</span>
         <span class="value">8090</span>
       </div>
     </div>
@@ -41,6 +44,6 @@
 
   <div id="toastHost" class="toast-host" aria-live="polite" aria-atomic="true"></div>
 
-  <script src="landing.js"></script>
+  <script src="landing.js?v=20260221-1"></script>
 </body>
 </html>

@@ -3,7 +3,6 @@ const pingBtn = document.getElementById("pingBtn");
 const pingStatus = document.getElementById("pingStatus");
 const lastAction = document.getElementById("lastAction");
 const toastHost = document.getElementById("toastHost");
-const sidebarGateway = document.getElementById("sidebarGateway");
 const serviceCheck = document.getElementById("serviceCheck");
 const serviceCheckBtn = document.getElementById("serviceCheckBtn");
 const serviceCheckStatus = document.getElementById("serviceCheckStatus");
@@ -36,6 +35,20 @@ const diagnosisForm = document.getElementById("diagnosisForm");
 const diagnosisRecordId = document.getElementById("diagnosisRecordId");
 const diagnosisText = document.getElementById("diagnosisText");
 
+const kpiPatients = document.getElementById("kpiPatients");
+const kpiAppointments = document.getElementById("kpiAppointments");
+const kpiRecords = document.getElementById("kpiRecords");
+const kpiDiagnoses = document.getElementById("kpiDiagnoses");
+const kpiUpcoming = document.getElementById("kpiUpcoming");
+const kpiNoAppointments = document.getElementById("kpiNoAppointments");
+const statusBars = document.getElementById("statusBars");
+
+const state = {
+  patients: [],
+  appointments: [],
+  records: [],
+};
+
 function apiBase() {
   const value = (gatewayInput.value || "").trim();
   if (!value) return "http://localhost:8080";
@@ -43,9 +56,13 @@ function apiBase() {
 }
 
 function setStatus(message, ok = true) {
-  lastAction.textContent = message;
-  pingStatus.textContent = ok ? "OK" : "Error";
-  pingStatus.style.color = ok ? "#7bdff2" : "#ff7a59";
+  if (lastAction) {
+    lastAction.textContent = message;
+  }
+  if (pingStatus) {
+    pingStatus.textContent = ok ? "OK" : "Erreur";
+    pingStatus.style.color = ok ? "#7bdff2" : "#ff7a59";
+  }
 }
 
 function toast(title, message, ok = true) {
@@ -68,10 +85,20 @@ async function fetchJson(url, options = {}) {
   });
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(text || res.statusText || `HTTP ${res.status}`);
+    const err = new Error(text || res.statusText || `HTTP ${res.status}`);
+    err.status = res.status;
+    throw err;
   }
   if (res.status === 204) return null;
   return res.json();
+}
+
+function isNotFoundError(err) {
+  return err && (
+    err.status === 404 ||
+    /not found/i.test(String(err.message)) ||
+    /aucun/i.test(String(err.message))
+  );
 }
 
 function normalizeDateTime(value) {
@@ -79,14 +106,83 @@ function normalizeDateTime(value) {
   return value.length === 16 ? `${value}:00` : value;
 }
 
+function formatDateShort(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString("fr-FR", {
+    dateStyle: "short",
+    timeStyle: "short",
+  });
+}
+
+function statusLabel(status) {
+  const map = {
+    Scheduled: "Planifie",
+    InProgress: "En cours",
+    Done: "Termine",
+    Cancelled: "Annule",
+  };
+  return map[status] || (status || "Inconnu");
+}
+
+function updateAnalyse() {
+  const patientCount = state.patients.length;
+  const appointmentCount = state.appointments.length;
+  const recordCount = state.records.length;
+  const diagnosisCount = state.records.reduce((sum, record) => sum + (record.diagnoses || []).length, 0);
+
+  const now = new Date();
+  const plus7 = new Date();
+  plus7.setDate(plus7.getDate() + 7);
+
+  const upcomingCount = state.appointments.filter((a) => {
+    const dt = new Date(a.appointmentDateTime);
+    return !Number.isNaN(dt.getTime()) && dt >= now && dt <= plus7;
+  }).length;
+
+  const patientsWithAppointment = new Set(state.appointments.map((a) => String(a.patientId)));
+  const noAppointmentCount = state.patients.filter((p) => !patientsWithAppointment.has(String(p.id))).length;
+
+  if (kpiPatients) kpiPatients.textContent = String(patientCount);
+  if (kpiAppointments) kpiAppointments.textContent = String(appointmentCount);
+  if (kpiRecords) kpiRecords.textContent = String(recordCount);
+  if (kpiDiagnoses) kpiDiagnoses.textContent = String(diagnosisCount);
+  if (kpiUpcoming) kpiUpcoming.textContent = String(upcomingCount);
+  if (kpiNoAppointments) kpiNoAppointments.textContent = String(noAppointmentCount);
+
+  const statusCounts = { Scheduled: 0, InProgress: 0, Done: 0, Cancelled: 0 };
+  state.appointments.forEach((a) => {
+    if (Object.prototype.hasOwnProperty.call(statusCounts, a.status)) {
+      statusCounts[a.status] += 1;
+    }
+  });
+
+  if (statusBars) {
+    statusBars.innerHTML = "";
+    const total = Math.max(appointmentCount, 1);
+    Object.entries(statusCounts).forEach(([status, count]) => {
+      const percent = Math.round((count / total) * 100);
+      const line = document.createElement("div");
+      line.className = "status-bar-row";
+      line.innerHTML = `
+        <span class="status-name">${statusLabel(status)}</span>
+        <div class="status-bar-track"><div class="status-bar-fill" style="width:${percent}%"></div></div>
+        <span class="status-value">${count} (${percent}%)</span>
+      `;
+      statusBars.appendChild(line);
+    });
+  }
+}
+
 pingBtn.addEventListener("click", async () => {
   try {
     await fetchJson(`${apiBase()}/patients`);
-    setStatus("Gateway: OK", true);
-    toast("Gateway", "Connected via /patients", true);
+    setStatus("Passerelle API operationnelle.", true);
+    toast("Passerelle", "Connexion validee via /patients.", true);
   } catch (err) {
-    setStatus("Gateway unreachable", false);
-    toast("Gateway", "Unreachable. Set API Gateway to http://localhost:8080", false);
+    setStatus("Passerelle API inaccessible.", false);
+    toast("Passerelle", "Inaccessible. Verifiez l'URL http://localhost:8080.", false);
   }
 });
 
@@ -103,39 +199,48 @@ if (serviceCheckBtn) {
       await fetchJson(`${apiBase()}${endpoint}`);
       serviceCheckStatus.textContent = "OK";
       serviceCheckStatus.style.color = "#7bdff2";
-      toast("Service Check", `${choice} reachable`, true);
+      toast("Verification", `${choice} accessible.`, true);
     } catch (err) {
-      serviceCheckStatus.textContent = "Error";
+      serviceCheckStatus.textContent = "Erreur";
       serviceCheckStatus.style.color = "#ff7a59";
-      if (String(err.message).includes("Patient not found")) {
-        toast("Service Check", "Create a patient first (ID 1) then retry.", false);
+      if (isNotFoundError(err)) {
+        toast("Verification", "Aucune donnee test disponible pour ce service.", false);
       } else {
-        toast("Service Check", err.message || "Service error", false);
+        toast("Verification", err.message || "Erreur service", false);
       }
     }
   });
 }
 
-
-// Patients
 async function loadPatients() {
   patientsTable.innerHTML = "";
-  const patients = await fetchJson(`${apiBase()}/patients`);
-  patients.forEach((p) => {
+  let patients = [];
+  try {
+    patients = await fetchJson(`${apiBase()}/patients`);
+  } catch (err) {
+    state.patients = [];
+    updateAnalyse();
+    throw err;
+  }
+
+  state.patients = Array.isArray(patients) ? patients : [];
+  state.patients.forEach((p) => {
     const row = document.createElement("tr");
     row.innerHTML = `
       <td>${p.id}</td>
-      <td>${p.nom}</td>
-      <td>${p.prenom}</td>
+      <td>${p.nom || ""}</td>
+      <td>${p.prenom || ""}</td>
       <td>${p.dateNaissance || ""}</td>
       <td>${p.contact || ""}</td>
       <td>
-        <button class="ghost" data-edit="${p.id}">Edit</button>
-        <button class="ghost" data-del="${p.id}">Delete</button>
+        <button class="ghost" data-edit="${p.id}">Modifier</button>
+        <button class="ghost" data-del="${p.id}">Supprimer</button>
       </td>
     `;
     patientsTable.appendChild(row);
   });
+  updateAnalyse();
+  return state.patients;
 }
 
 patientForm.addEventListener("submit", async (e) => {
@@ -152,22 +257,24 @@ patientForm.addEventListener("submit", async (e) => {
         method: "PUT",
         body: JSON.stringify(payload),
       });
-      setStatus("Patient updated", true);
-      toast("Patients", "Patient updated.", true);
+      setStatus("Patient mis a jour.", true);
+      toast("Patients", "Patient mis a jour.", true);
     } else {
       await fetchJson(`${apiBase()}/patients`, {
         method: "POST",
         body: JSON.stringify(payload),
       });
-      setStatus("Patient created", true);
-      toast("Patients", "Patient created.", true);
+      setStatus("Patient cree.", true);
+      toast("Patients", "Patient cree.", true);
     }
     patientForm.reset();
     patientId.value = "";
     await loadPatients();
+    await loadAppointments(appointmentFilter.value, true);
+    await loadRecords(recordFilter.value, true);
   } catch (err) {
-    setStatus(`Patient error: ${err.message}`, false);
-    toast("Patients", err.message || "Action failed.", false);
+    setStatus(`Erreur patient: ${err.message}`, false);
+    toast("Patients", err.message || "Action echouee.", false);
   }
 });
 
@@ -176,7 +283,13 @@ document.getElementById("patientClear").addEventListener("click", () => {
   patientId.value = "";
 });
 
-document.getElementById("refreshPatients").addEventListener("click", loadPatients);
+document.getElementById("refreshPatients").addEventListener("click", async () => {
+  try {
+    await loadPatients();
+  } catch (err) {
+    toast("Patients", err.message || "Impossible de charger les patients.", false);
+  }
+});
 
 patientsTable.addEventListener("click", async (e) => {
   const editId = e.target.getAttribute("data-edit");
@@ -191,33 +304,59 @@ patientsTable.addEventListener("click", async (e) => {
   }
   if (delId) {
     await fetchJson(`${apiBase()}/patients/${delId}`, { method: "DELETE" });
-    toast("Patients", "Patient deleted.", true);
+    toast("Patients", "Patient supprime.", true);
     await loadPatients();
+    await loadAppointments(appointmentFilter.value, true);
+    await loadRecords(recordFilter.value, true);
   }
 });
 
-// Appointments
-async function loadAppointments(patientIdValue) {
+async function loadAppointments(patientIdValue, silent = false) {
   appointmentsTable.innerHTML = "";
-  const endpoint = patientIdValue
-    ? `${apiBase()}/appointments/patient/${patientIdValue}`
-    : `${apiBase()}/appointments/patient/1`;
-  const appointments = await fetchJson(endpoint);
-  appointments.forEach((a) => {
+  let appointments = [];
+
+  if (patientIdValue) {
+    const endpoint = `${apiBase()}/appointments/patient/${patientIdValue}`;
+    try {
+      appointments = await fetchJson(endpoint);
+    } catch (err) {
+      if (!isNotFoundError(err)) throw err;
+      appointments = [];
+    }
+  } else {
+    const patientIds = state.patients.map((p) => p.id);
+    const results = await Promise.all(patientIds.map(async (id) => {
+      try {
+        return await fetchJson(`${apiBase()}/appointments/patient/${id}`);
+      } catch (err) {
+        if (isNotFoundError(err)) return [];
+        throw err;
+      }
+    }));
+    appointments = results.flat();
+  }
+
+  state.appointments = Array.isArray(appointments) ? appointments : [];
+  state.appointments.forEach((a) => {
     const row = document.createElement("tr");
     row.innerHTML = `
       <td>${a.id}</td>
       <td>${a.patientId}</td>
-      <td>${a.appointmentDateTime || ""}</td>
+      <td>${formatDateShort(a.appointmentDateTime)}</td>
       <td>${a.reason || ""}</td>
-      <td>${a.status || ""}</td>
+      <td>${statusLabel(a.status)}</td>
       <td>
-        <button class="ghost" data-edit="${a.id}">Edit</button>
-        <button class="ghost" data-del="${a.id}">Delete</button>
+        <button class="ghost" data-edit="${a.id}">Modifier</button>
+        <button class="ghost" data-del="${a.id}">Supprimer</button>
       </td>
     `;
     appointmentsTable.appendChild(row);
   });
+  updateAnalyse();
+  if (!silent) {
+    setStatus("Rendez-vous charges.", true);
+  }
+  return state.appointments;
 }
 
 appointmentForm.addEventListener("submit", async (e) => {
@@ -234,26 +373,26 @@ appointmentForm.addEventListener("submit", async (e) => {
         method: "PUT",
         body: JSON.stringify(payload),
       });
-      setStatus("Appointment updated", true);
-      toast("Appointments", "Appointment updated.", true);
+      setStatus("Rendez-vous mis a jour.", true);
+      toast("Rendez-vous", "Rendez-vous mis a jour.", true);
     } else {
       await fetchJson(`${apiBase()}/appointments`, {
         method: "POST",
         body: JSON.stringify(payload),
       });
-      setStatus("Appointment created", true);
-      toast("Appointments", "Appointment created.", true);
+      setStatus("Rendez-vous cree.", true);
+      toast("Rendez-vous", "Rendez-vous cree.", true);
     }
     appointmentForm.reset();
     appointmentId.value = "";
-    await loadAppointments(appointmentFilter.value || payload.patientId);
+    await loadAppointments(appointmentFilter.value || payload.patientId, true);
   } catch (err) {
-    const msg = err.message || "Action failed.";
-    setStatus(`Appointment error: ${msg}`, false);
-    if (msg.includes("Patient not found")) {
-      toast("Appointments", "Add the patient first, then create the appointment.", false);
+    const msg = err.message || "Action echouee.";
+    setStatus(`Erreur rendez-vous: ${msg}`, false);
+    if (/Patient not found/i.test(msg)) {
+      toast("Rendez-vous", "Ajoutez d'abord le patient, puis creez le rendez-vous.", false);
     } else {
-      toast("Appointments", msg, false);
+      toast("Rendez-vous", msg, false);
     }
   }
 });
@@ -263,12 +402,20 @@ document.getElementById("appointmentClear").addEventListener("click", () => {
   appointmentId.value = "";
 });
 
-document.getElementById("refreshAppointments").addEventListener("click", () => {
-  loadAppointments(appointmentFilter.value);
+document.getElementById("refreshAppointments").addEventListener("click", async () => {
+  try {
+    await loadAppointments(appointmentFilter.value, true);
+  } catch (err) {
+    toast("Rendez-vous", err.message || "Impossible de charger les rendez-vous.", false);
+  }
 });
 
-document.getElementById("appointmentFilterBtn").addEventListener("click", () => {
-  loadAppointments(appointmentFilter.value);
+document.getElementById("appointmentFilterBtn").addEventListener("click", async () => {
+  try {
+    await loadAppointments(appointmentFilter.value, true);
+  } catch (err) {
+    toast("Rendez-vous", err.message || "Impossible de filtrer les rendez-vous.", false);
+  }
 });
 
 appointmentsTable.addEventListener("click", async (e) => {
@@ -284,34 +431,58 @@ appointmentsTable.addEventListener("click", async (e) => {
   }
   if (delId) {
     await fetchJson(`${apiBase()}/appointments/${delId}`, { method: "DELETE" });
-    toast("Appointments", "Appointment deleted.", true);
-    await loadAppointments(appointmentFilter.value);
+    toast("Rendez-vous", "Rendez-vous supprime.", true);
+    await loadAppointments(appointmentFilter.value, true);
   }
 });
 
-// Records
-async function loadRecords(patientIdValue) {
+async function loadRecords(patientIdValue, silent = false) {
   recordsTable.innerHTML = "";
-  const endpoint = patientIdValue
-    ? `${apiBase()}/records/patient/${patientIdValue}`
-    : `${apiBase()}/records/patient/1`;
-  const records = await fetchJson(endpoint);
-  records.forEach((r) => {
+  let records = [];
+
+  if (patientIdValue) {
+    const endpoint = `${apiBase()}/records/patient/${patientIdValue}`;
+    try {
+      records = await fetchJson(endpoint);
+    } catch (err) {
+      if (!isNotFoundError(err)) throw err;
+      records = [];
+    }
+  } else {
+    const patientIds = state.patients.map((p) => p.id);
+    const results = await Promise.all(patientIds.map(async (id) => {
+      try {
+        return await fetchJson(`${apiBase()}/records/patient/${id}`);
+      } catch (err) {
+        if (isNotFoundError(err)) return [];
+        throw err;
+      }
+    }));
+    records = results.flat();
+  }
+
+  state.records = Array.isArray(records) ? records : [];
+  state.records.forEach((r) => {
     const diagnoses = (r.diagnoses || [])
-      .map((d) => `${d.dateTime ? d.dateTime.split("T")[0] : ""}: ${d.description}`)
+      .map((d) => `${formatDateShort(d.dateTime)}: ${d.description}`)
       .join(" | ");
     const row = document.createElement("tr");
     row.innerHTML = `
       <td>${r.id}</td>
       <td>${r.patientId}</td>
-      <td>${r.createdAt || ""}</td>
+      <td>${formatDateShort(r.createdAt)}</td>
       <td>${diagnoses}</td>
       <td>
-        <button class="ghost" data-del="${r.id}">Delete</button>
+        <button class="ghost" data-del="${r.id}">Supprimer</button>
       </td>
     `;
     recordsTable.appendChild(row);
   });
+  updateAnalyse();
+  if (!silent) {
+    setStatus("Dossiers medicaux charges.", true);
+  }
+  return state.records;
 }
 
 recordForm.addEventListener("submit", async (e) => {
@@ -322,22 +493,30 @@ recordForm.addEventListener("submit", async (e) => {
       method: "POST",
       body: JSON.stringify(payload),
     });
-    setStatus("Record created", true);
-    toast("Records", "Record created.", true);
+    setStatus("Dossier medical cree.", true);
+    toast("Dossiers", "Dossier medical cree.", true);
     recordForm.reset();
-    await loadRecords(recordFilter.value || payload.patientId);
+    await loadRecords(recordFilter.value || payload.patientId, true);
   } catch (err) {
-    setStatus(`Record error: ${err.message}`, false);
-    toast("Records", err.message || "Action failed.", false);
+    setStatus(`Erreur dossier: ${err.message}`, false);
+    toast("Dossiers", err.message || "Action echouee.", false);
   }
 });
 
-document.getElementById("refreshRecords").addEventListener("click", () => {
-  loadRecords(recordFilter.value);
+document.getElementById("refreshRecords").addEventListener("click", async () => {
+  try {
+    await loadRecords(recordFilter.value, true);
+  } catch (err) {
+    toast("Dossiers", err.message || "Impossible de charger les dossiers.", false);
+  }
 });
 
-document.getElementById("recordFilterBtn").addEventListener("click", () => {
-  loadRecords(recordFilter.value);
+document.getElementById("recordFilterBtn").addEventListener("click", async () => {
+  try {
+    await loadRecords(recordFilter.value, true);
+  } catch (err) {
+    toast("Dossiers", err.message || "Impossible de filtrer les dossiers.", false);
+  }
 });
 
 diagnosisForm.addEventListener("submit", async (e) => {
@@ -348,13 +527,13 @@ diagnosisForm.addEventListener("submit", async (e) => {
       method: "POST",
       body: JSON.stringify(payload),
     });
-    setStatus("Diagnosis added", true);
-    toast("Records", "Diagnosis added.", true);
+    setStatus("Diagnostic ajoute.", true);
+    toast("Dossiers", "Diagnostic ajoute.", true);
     diagnosisForm.reset();
-    await loadRecords(recordFilter.value);
+    await loadRecords(recordFilter.value, true);
   } catch (err) {
-    setStatus(`Diagnosis error: ${err.message}`, false);
-    toast("Records", err.message || "Action failed.", false);
+    setStatus(`Erreur diagnostic: ${err.message}`, false);
+    toast("Dossiers", err.message || "Action echouee.", false);
   }
 });
 
@@ -362,19 +541,25 @@ recordsTable.addEventListener("click", async (e) => {
   const delId = e.target.getAttribute("data-del");
   if (delId) {
     await fetchJson(`${apiBase()}/records/${delId}`, { method: "DELETE" });
-    toast("Records", "Record deleted.", true);
-    await loadRecords(recordFilter.value);
+    toast("Dossiers", "Dossier supprime.", true);
+    await loadRecords(recordFilter.value, true);
   }
 });
 
-if (sidebarGateway) {
-  sidebarGateway.textContent = apiBase();
+const refreshAnalyseBtn = document.getElementById("refreshAnalyse");
+if (refreshAnalyseBtn) {
+  refreshAnalyseBtn.addEventListener("click", async () => {
+    try {
+      await loadPatients();
+      await loadAppointments(appointmentFilter.value, true);
+      await loadRecords(recordFilter.value, true);
+      setStatus("Analyse actualisee.", true);
+      toast("Analyse", "Indicateurs recalcules.", true);
+    } catch (err) {
+      toast("Analyse", err.message || "Erreur d'actualisation.", false);
+    }
+  });
 }
-
-// Initial load for dashboard page
-loadPatients();
-loadAppointments();
-loadRecords();
 
 function showPanelFromHash(hash) {
   if (!hash) return;
@@ -408,3 +593,17 @@ if (navLinks.length) {
 
   showPanelFromHash(window.location.hash || navLinks[0].getAttribute("href"));
 }
+
+async function initDashboard() {
+  try {
+    await loadPatients();
+    await loadAppointments(appointmentFilter.value, true);
+    await loadRecords(recordFilter.value, true);
+    setStatus("Tableau de bord charge.", true);
+  } catch (err) {
+    setStatus("Erreur lors du chargement initial.", false);
+    toast("Chargement", err.message || "Impossible de charger les donnees.", false);
+  }
+}
+
+initDashboard();

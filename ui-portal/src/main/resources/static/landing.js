@@ -19,14 +19,14 @@ function toast(title, message, ok = true) {
 async function checkGateway() {
   try {
     const res = await fetch(`${gatewayUrl}/patients`);
-    if (!res.ok) throw new Error("Gateway error");
+    if (!res.ok) throw new Error("Erreur passerelle");
     landingStatus.textContent = "OK";
     landingStatus.style.color = "#7bdff2";
-    toast("Gateway", "Connected via /patients", true);
+    toast("Passerelle", "Connexion validee via /patients", true);
   } catch (err) {
-    landingStatus.textContent = "Error";
+    landingStatus.textContent = "Erreur";
     landingStatus.style.color = "#ff7a59";
-    toast("Gateway", "Unreachable. Start API Gateway.", false);
+    toast("Passerelle", "Inaccessible. Demarrez l'API Gateway.", false);
   }
 }
 
